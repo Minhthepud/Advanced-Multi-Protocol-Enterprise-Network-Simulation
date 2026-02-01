@@ -1,0 +1,584 @@
+========================================================
+1. Router R1 (Middle-Site / Core)
+========================================================
+ena
+conf t
+hostname R1
+
+interface Loopback0
+ ip address 1.1.1.1 255.255.255.255
+ exi
+
+interface Ethernet0/0
+ description Link_to_R7
+ ip address 10.1.17.1 255.255.255.252
+ no shutdown
+ exi
+
+interface Ethernet0/1
+ description Link_to_R2
+ ip address 10.0.12.1 255.255.255.252
+ no shutdown
+ exi
+
+interface Ethernet0/2
+ description Link_to_R4
+ ip address 10.0.14.2 255.255.255.252
+ no shutdown
+ exi
+
+router ospf 1
+ router-id 1.1.1.1
+ network 1.1.1.1 0.0.0.0 area 0
+ network 10.0.12.0 0.0.0.3 area 0
+ network 10.0.14.0 0.0.0.3 area 0
+ redistribute eigrp 100 subnets
+ exi
+
+router eigrp 100
+ no auto-summary
+ network 10.1.17.0 0.0.0.3
+ redistribute ospf 1 metric 10000 100 255 1 1500
+ exi
+
+interface Tunnel0
+ description GRE_Tunnel_to_Area1
+ ip address 10.1.100.1 255.255.255.252
+ ip ospf network point-to-point
+ ip ospf 1 area 0
+ tunnel source 10.1.17.1
+ tunnel destination 10.1.78.2
+ exi
+end
+write
+
+========================================================
+2. Router R2 (Middle-Site / ABR)
+========================================================
+ena
+conf t
+hostname R2
+
+interface Loopback0
+ ip address 2.2.2.2 255.255.255.255
+ exi
+
+interface Ethernet0/0
+ description LAN_HSRP_S19
+ ip address 10.2.1.2 255.255.255.0
+ no shutdown
+ exi
+
+interface Ethernet0/1
+ description Link_to_R1
+ ip address 10.0.12.2 255.255.255.252
+ no shutdown
+ exi
+
+interface Ethernet0/2
+ description Link_to_R3
+ ip address 10.0.23.1 255.255.255.252
+ no shutdown
+ exi
+
+router ospf 1
+ router-id 2.2.2.2
+ network 2.2.2.2 0.0.0.0 area 0
+ network 10.0.12.0 0.0.0.3 area 0
+ network 10.0.23.0 0.0.0.3 area 0
+ network 10.2.1.0 0.0.0.255 area 2
+ area 2 nssa
+ exi
+end
+write
+
+========================================================
+3. Router R3 (Middle-Site / ASBR)
+========================================================
+ena
+conf t
+hostname R3
+
+interface Loopback0
+ ip address 3.3.3.3 255.255.255.255
+interface Ethernet0/0
+ description LAN_RIP_S20
+ ip address 192.168.1.3 255.255.255.0
+ no shutdown
+ exi
+
+interface Ethernet0/1
+ description Link_to_R2
+ ip address 10.0.23.2 255.255.255.252
+ no shutdown
+ exi
+
+interface Ethernet0/2
+ description Link_to_R4
+ ip address 10.0.34.1 255.255.255.252
+ no shutdown
+ exi
+
+router ospf 1
+ router-id 3.3.3.3
+ network 3.3.3.3 0.0.0.0 area 0
+ network 10.0.23.0 0.0.0.3 area 0
+ network 10.0.34.0 0.0.0.3 area 0
+ redistribute rip subnets
+ exi
+
+router rip
+ version 2
+ no auto-summary
+ network 192.168.1.0
+ redistribute ospf 1 metric 2
+ exi
+end
+write
+
+========================================================
+4. Router R4 (Middle-Site / ABR)
+========================================================
+ena
+conf t
+hostname R4
+
+interface Loopback0
+ ip address 4.4.4.4 255.255.255.255
+ exi
+
+interface Ethernet0/0
+ description Link_to_R5
+ ip address 10.3.45.1 255.255.255.252
+ no shutdown
+ exi
+
+interface Ethernet0/1
+ description Link_to_R3
+ ip address 10.0.34.2 255.255.255.252
+ no shutdown
+ exi
+
+interface Ethernet0/2
+ description Link_to_R1
+ ip address 10.0.14.1 255.255.255.252
+ no shutdown
+ exi
+
+router ospf 1
+ router-id 4.4.4.4
+ network 4.4.4.4 0.0.0.0 area 0
+ network 10.0.14.0 0.0.0.3 area 0
+ network 10.0.34.0 0.0.0.3 area 0
+ network 10.3.45.0 0.0.0.3 area 3
+ area 3 virtual-link 5.5.5.5
+ exi
+end
+write
+
+========================================================
+5. Router R5 (Right-Site / ABR)
+========================================================
+ena
+conf t
+hostname R5
+
+interface Loopback0
+ ip address 5.5.5.5 255.255.255.255
+ exi
+
+interface Ethernet0/0
+ ip address 10.3.45.2 255.255.255.252
+ no shutdown
+ exi
+
+interface Ethernet0/1
+ ip address 10.3.56.1 255.255.255.252
+ no shutdown
+ exi
+
+router ospf 1
+ router-id 5.5.5.5
+ network 5.5.5.5 0.0.0.0 area 3
+ network 10.3.45.0 0.0.0.3 area 3
+ network 10.3.56.0 0.0.0.3 area 4
+ area 3 virtual-link 4.4.4.4
+ area 4 stub
+ exi
+end
+write
+
+========================================================
+6. Router R6 (Right-Site / Stub)
+========================================================
+ena
+conf t
+hostname R6
+
+interface Loopback0
+ ip address 6.6.6.6 255.255.255.255
+ exi
+
+interface Ethernet0/0
+ ip address 10.3.56.2 255.255.255.252
+ no shutdown
+ exi
+
+router ospf 1
+ router-id 6.6.6.6
+ network 6.6.6.6 0.0.0.0 area 4
+ network 10.3.56.0 0.0.0.3 area 4
+ area 4 stub
+ exi
+end
+write
+
+========================================================
+7. Router R7 (Upper-Site / EIGRP)
+========================================================
+ena
+conf t
+hostname R7
+
+interface Loopback0
+ ip address 7.7.7.7 255.255.255.255
+ exi
+
+interface Ethernet0/0
+ ip address 10.1.17.2 255.255.255.252
+ no shutdown
+ exi
+
+interface Ethernet0/1
+ ip address 10.1.78.1 255.255.255.252
+ no shutdown
+ exi
+
+router eigrp 100
+ eigrp router-id 7.7.7.7
+ no auto-summary
+ network 10.1.17.0 0.0.0.3
+ network 10.1.78.0 0.0.0.3
+ network 7.7.7.7 0.0.0.0
+ exi
+end
+write
+
+========================================================
+8. Router R8 (Upper-Site / ASBR & Tunnel)
+========================================================
+ena
+conf t
+hostname R8
+
+interface Loopback0
+ ip address 8.8.8.8 255.255.255.255
+ exi
+
+interface Ethernet0/0
+ ip address 10.1.78.2 255.255.255.252
+ no shutdown
+ exi
+
+interface Ethernet0/1
+ ip address 10.1.18.8 255.255.255.0
+ no shutdown
+ exi
+
+router eigrp 100
+ eigrp router-id 8.8.8.8
+ no auto-summary
+ network 10.1.78.0 0.0.0.3
+ exi
+
+router ospf 1
+ router-id 8.8.8.8
+ network 8.8.8.8 0.0.0.0 area 1
+ network 10.1.18.0 0.0.0.255 area 1
+ redistribute eigrp 100 subnets
+ area 1 stub no-summary
+ exi
+
+interface Tunnel0
+ ip address 10.1.100.2 255.255.255.252
+ ip ospf network point-to-point
+ ip ospf 1 area 0
+ tunnel source 10.1.78.2
+ tunnel destination 10.1.17.1
+ exi
+end
+write
+
+========================================================
+9. Router R9 (Upper-Site / Stub)
+========================================================
+ena
+conf t
+hostname R9
+
+interface Loopback0
+ ip address 9.9.9.9 255.255.255.255
+ exi
+
+interface Ethernet0/0
+ ip address 10.1.18.9 255.255.255.0
+ no shutdown
+ exi
+
+router ospf 1
+ router-id 9.9.9.9
+ network 9.9.9.9 0.0.0.0 area 1
+ network 10.1.18.0 0.0.0.255 area 1
+ area 1 stub
+ exi
+end
+write
+
+========================================================
+10. Router R10 (Upper-Site / Stub)
+========================================================
+ena
+conf t
+hostname R10
+
+interface Loopback0
+ ip address 10.10.10.10 255.255.255.255
+ exi
+
+interface Ethernet0/0
+ ip address 10.1.18.10 255.255.255.0
+ no shutdown
+ exi
+
+router ospf 1
+ router-id 10.10.10.10
+ network 10.10.10.10 0.0.0.0 area 1
+ network 10.1.18.0 0.0.0.255 area 1
+ area 1 stub
+ exi
+end
+write
+
+========================================================
+11. Router R11 (Bottom-Site / RIP)
+========================================================
+ena
+conf t
+hostname R11
+
+interface Loopback0
+ ip address 11.11.11.11 255.255.255.255
+ exi
+
+interface Ethernet0/0
+ ip address 192.168.1.11 255.255.255.0
+ no shutdown
+ exi
+
+router rip
+ version 2
+ no auto-summary
+ network 192.168.1.0
+ network 11.0.0.0
+ exi
+end
+write
+
+========================================================
+12. Router R12 (Bottom-Site / RIP)
+========================================================
+en
+conf t
+hostname R12
+
+interface Loopback0
+ ip address 12.12.12.12 255.255.255.255
+ exi
+
+interface Ethernet0/0
+ ip address 192.168.1.12 255.255.255.0
+ no shutdown
+ exi
+
+router rip
+ version 2
+ no auto-summary
+ network 192.168.1.0
+ network 12.0.0.0
+ exi
+end
+write
+
+========================================================
+13. Router R13 (Bottom-Site / RIP)
+========================================================
+en
+conf t
+hostname R13
+
+interface Loopback0
+ ip address 13.13.13.13 255.255.255.255
+ exi
+
+interface Ethernet0/0
+ ip address 192.168.1.13 255.255.255.0
+ no shutdown
+ exi
+
+router rip
+ version 2
+ no auto-summary
+ network 192.168.1.0
+ network 13.0.0.0
+ exi
+end
+write
+
+========================================================
+14. Router R14 (Left-Site / Edge & HSRP)
+========================================================
+ena
+conf t
+hostname R14
+
+interface Loopback0
+ ip address 14.14.14.14 255.255.255.255
+ exi
+
+interface Ethernet0/1
+ ip address 10.2.1.14 255.255.255.0
+ standby 1 ip 10.2.1.254
+ standby 1 priority 150
+ standby 1 preempt
+ no shutdown
+ exi
+
+interface Ethernet0/0
+ ip address 209.165.201.1 255.255.255.252
+ no shutdown
+ exi
+
+router ospf 1
+ router-id 14.14.14.14
+ network 14.14.14.14 0.0.0.0 area 2
+ network 10.2.1.0 0.0.0.255 area 2
+ area 2 nssa
+ default-information originate always
+ exi
+
+ip route 0.0.0.0 0.0.0.0 209.165.201.2
+
+router bgp 65000
+ bgp router-id 14.14.14.14
+ neighbor 15.15.15.15 remote-as 65000
+ neighbor 15.15.15.15 update-source Loopback0
+ neighbor 15.15.15.15 next-hop-self
+ neighbor 209.165.201.2 remote-as 65001
+ network 10.2.0.0 mask 255.255.0.0
+ network 14.14.14.14 mask 255.255.255.255
+ exi
+end
+write
+
+========================================================
+15. Router R15 (Left-Site / Edge & HSRP)
+========================================================
+ena
+conf t
+hostname R15
+
+interface Loopback0
+ ip address 15.15.15.15 255.255.255.255
+ exi
+
+interface Ethernet0/1
+ ip address 10.2.1.15 255.255.255.0
+ standby 1 ip 10.2.1.254
+ standby 1 preempt
+ no shutdown
+ exi
+
+interface Ethernet0/0
+ ip address 209.165.201.5 255.255.255.252
+ no shutdown
+ exi
+
+router ospf 1
+ router-id 15.15.15.15
+ network 15.15.15.15 0.0.0.0 area 2
+ network 10.2.1.0 0.0.0.255 area 2
+ area 2 nssa
+ default-information originate always
+ exi
+
+router bgp 65000
+ bgp router-id 15.15.15.15
+ neighbor 14.14.14.14 remote-as 65000
+ neighbor 14.14.14.14 update-source Loopback0
+ neighbor 14.14.14.14 next-hop-self
+ neighbor 209.165.201.6 remote-as 65001
+ network 10.2.0.0 mask 255.255.0.0
+ network 15.15.15.15 mask 255.255.255.255
+ exi
+end
+write
+
+========================================================
+16. Router R16 (ISP 1)
+========================================================
+ena
+conf t
+hostname R16
+
+interface Loopback0
+ ip address 16.16.16.16 255.255.255.255
+ exi
+
+interface Ethernet0/0
+ ip address 209.165.201.2 255.255.255.252
+ no shutdown
+ exi
+
+interface Ethernet0/1
+ ip address 209.165.201.9 255.255.255.252
+ no shutdown
+ exi
+
+router bgp 65001
+ bgp router-id 16.16.16.16
+ neighbor 209.165.201.1 remote-as 65000
+ neighbor 209.165.201.10 remote-as 65001
+ network 16.16.16.16 mask 255.255.255.255
+ exi
+end
+write
+
+========================================================
+17. Router R17 (ISP 2)
+========================================================
+ena
+conf t
+hostname R17
+
+interface Loopback0
+ ip address 17.17.17.17 255.255.255.255
+ exi
+
+interface Ethernet0/0
+ ip address 209.165.201.6 255.255.255.252
+ no shutdown
+ exi
+
+interface Ethernet0/1
+ ip address 209.165.201.10 255.255.255.252
+ no shutdown
+ exi
+
+router bgp 65001
+ bgp router-id 17.17.17.17
+ neighbor 209.165.201.5 remote-as 65000
+ neighbor 209.165.201.9 remote-as 65001
+ network 17.17.17.17 mask 255.255.255.255
+ exi
+end
+write
